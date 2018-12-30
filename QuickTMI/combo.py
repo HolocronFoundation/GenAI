@@ -8,10 +8,6 @@ from tensorflow.keras import models
 from tqdm import tqdm
 from copy import copy
 
-#from tensorflow.keras.models import Model, Sequential
-#from tensorflow.keras.optimizers import Adam
-#from tensorflow.keras import initializers
-
 def buildGANModel(inputShape, generatorLayers=4, discriminatorLayers=4, defaultLayerSize=16, outputs=1, randomSize=100, finalActivation='sigmoid',
                   optimizers=[keras.optimizers.Adam(lr=0.0002, beta_1=0.5),keras.optimizers.Adam(lr=0.0002, beta_1=0.5), keras.optimizers.Adam(lr=0.0002, beta_1=0.5)]):
     
@@ -51,8 +47,8 @@ def plotGeneratedImages(GAN, epoch, imageDimension=(28, 28), examples=100, dim=(
     plt.savefig('gan_generated_image_epoch_%d.png' % epoch)
 
 def trainGAN(GAN, trainingX, epochs=1, batchSize=128, displayFunction=plotGeneratedImages):
+    #[[Turn GAN into dictionary instead of array
     xTrain = trainingX
-
     batchCount = int(xTrain.shape[0] / batchSize)
 
     for epoch in range(epochs):

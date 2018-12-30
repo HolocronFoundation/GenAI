@@ -1,45 +1,50 @@
 import sys, os
+import numpy as np
 from PIL import Image
 
-sys.path.append('C:/Users/Samuel Troper/Desktop/QuickTMI/QuickTMI')
+sys.path.append('C:/Users/Samuel Troper/Documents/GitHub/QuickTMI/QuickTMI')
 
 import combo
+
+currentDir = 'C:/Users/Samuel Troper/Documents/GitHub/QuickTMI/dAll'
+
+outputDir ='D:/dAlI Output'
+
+largestWidth = 0
+largestHeight = 0
 
 def JPGExtension(fileName):
     if ".jpg" in fileName.lower():
         return True
     return False
 
-def normalizeInput(rawImage, largestWidth, largestHeight):
+def normalizeInput(rawImage):
     normalizedImage = []
     for i in range(len(rawImage)):
         if i is 0:
-            normalizedImage.append(rawImage[i]/largestWidth)
+            normalizedImage.append((rawImage[i]/largestWidth)*2-1)
         elif i is 1:
-            normalizedImage.append(rawImage[i]/largestHeight)
+            normalizedImage.append((rawImage[i]/largestHeight)*2-1)
         else:
-            normalizedImage.append(rawImage[i]/255)
+            normalizedImage.append((rawImage[i]/255)*2-1)
     return normalizedImage
 
-def prepInput(inputDirectory="C:/Users/Samuel Troper/Desktop/dAll/R_Images",
-              newWidth = 100, newHeight=100):
+def prepInput(inputDirectory=currentDir+"/R_Images",
+              newWidth=100, newHeight=100):
     #Currently will only import JPG
     directoryJPGList = list(filter(JPGExtension, os.listdir(inputDirectory)))
     images = []
-    largestWidth = 0
-    largestHeight = 0
     iteration = 0
+    global largestWidth
+    global largestHeight
     for image in directoryJPGList:
-        if iteration > 10: #REMOVE 4 REAL
-            break
+        #if iteration > 100: #REMOVE 4 REAL
+            #break
         print(iteration)
         iteration += 1
         currentImage = Image.open(inputDirectory + "/" + image)
-        print(currentImage.size)
         width = currentImage.size[0]
-        print(width)
         height = currentImage.size[1]
-        print(height)
         if width > largestWidth:
             largestWidth = width
         if height > largestHeight:
@@ -49,54 +54,47 @@ def prepInput(inputDirectory="C:/Users/Samuel Troper/Desktop/dAll/R_Images",
         for pixel in list(currentImage.getdata()):
             currentImageInfo.extend(pixel)
         images.append(currentImageInfo)
-    print(largestWidth)
-    print(largestHeight)
-    dkk = [largestWidth]*len(images)
-    print(dkk)
-    dkj = [largestHeight]*len(images)
-    print(dkj)
-    normalizedImages = list(map(normalizeInput, images,
-                                dkk, dkj))
-    return normalizedImages
+    normalizedImages = list(map(normalizeInput, images))
     #print("Ok")
     #for i in range(10):
-        #displayImage(normalizedImages[i],
-                     #largestWidth, largestHeight,
-                     #newWidth, newHeight)
+    #    displayImage(normalizedImages[i], newWidth, newHeight)
+    return normalizedImages
 
-def displayImage(image, largestWidth, largestHeight, newWidth, newHeight):
+def displayImage(image, newWidth, newHeight, epoch, iteration):
     temp = Image.new('RGB', (newWidth, newHeight))
     temp.putdata(linearToRGB(image[2:]))
-    temp = temp.resize((int(largestWidth*image[0]), int(largestHeight*image[1])))
-    temp.show()
-
-def displayImage2(image, largestWidth, largestHeight):
-    display = Image.new('RGB', (int(largestWidth*image[0]),
-                                int(largestHeight*image[1])))
-    display.putdata(linearToRGB(image[2:]))
-    display.show()
+    adjustedWidth = int(largestWidth*(image[0]+1)/2)
+    adjustedHeight = int(largestHeight*(image[1]+1)/2)
+    if adjustedWidth > 0 and adjustedHeight > 0:
+        filename = outputDir+'/epoch' + str(epoch) + '/' + str(iteration) + '.png'
+        temp = temp.resize((adjustedWidth, adjustedHeight))
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        #temp.show()
+        temp.save(filename)
 
 def linearToRGB(image):
     newImage = []
     currentPixel = []
     for i in range(len(image)):
-        currentPixel.append(int(image[i]*255))
+        currentPixel.append(int((image[i]+1)*255/2))
         if i%3 is 2:
             newImage.append(tuple(currentPixel))
             currentPixel = []
     return tuple(newImage)
 
-def generateAndSave(GAN, epoch, number=3):
+def generateAndSave(GAN, epoch, imageDimension=(100,100), number=5):
     generator = GAN[0]
-    noise = np.random.normal(0, 1, size=[number, GAN[3]])
-    generated_image = generator.predict(noise)
-    
+    for i in range(number):
+        noise = np.random.normal(0, 1, size=[1, GAN[3]])
+        generatedImage = generator.predict(noise)[0]
+        displayImage(generatedImage, imageDimension[0], imageDimension[1], epoch, i)
     
 
 def test_GAN(newWidth=100, newHeight=100):
-    models = buildGANModel(newWidth*newHeight, [256, 512, 1024, 2048], [1024, 512, 256], epochs=100)
-    data = prepInput(newWidth = newWidth, newHeight=newHeight)
-    trainGAN(models, data, epochs=10, displayFunction=generateAndSave)
+    models = combo.buildGANModel(newWidth*newHeight*3+2, [256, 512, 1024, 2048], [1024, 512, 256])
+    data = prepInput(newWidth=newWidth, newHeight=newHeight)
+    data = np.array(data)
+    combo.trainGAN(models, data, epochs=10000, batchSize=16, displayFunction=generateAndSave)
 
 test_GAN()
 
