@@ -35,11 +35,23 @@ def loadMNISTData():
     (xTrain, yTrain), (x_test, y_test) = keras.datasets.mnist.load_data()
     xTrain = (xTrain.astype(np.float32) - 127.5)/127.5
     xTrain = xTrain.reshape(60000, 784) #Learn more about this reshape
-    return [xTrain, yTrain]
+    return xTrain
 
-def trainGAN(GAN, trainingData, epochs=1, batchSize=128):
-    xTrain = trainingData[0]
-    yTrain = trainingData[1]
+def plotGeneratedImages(GAN, epoch, imageDimension=(28, 28), examples=100, dim=(10, 10), figsize=(10, 10)):
+    generator = GAN[0]
+    noise = np.random.normal(0, 1, size=[examples, GAN[3]])
+    generated_images = generator.predict(noise)
+    generated_images = generated_images.reshape(examples, imageDimension[0], imageDimension[1])
+    plt.figure(figsize=figsize)
+    for i in range(generated_images.shape[0]):
+        plt.subplot(dim[0], dim[1], i+1)
+        plt.imshow(generated_images[i], interpolation='nearest', cmap='gray_r')
+        plt.axis('off')
+    plt.tight_layout()
+    plt.savefig('gan_generated_image_epoch_%d.png' % epoch)
+
+def trainGAN(GAN, trainingX, epochs=1, batchSize=128, displayFunction=plotGeneratedImages):
+    xTrain = trainingX
 
     batchCount = int(xTrain.shape[0] / batchSize)
 
@@ -64,19 +76,7 @@ def trainGAN(GAN, trainingData, epochs=1, batchSize=128):
             GAN[1].trainable = False
             GAN[2].train_on_batch(noise, yGen)
         
-        plotGeneratedImages(epoch, GAN[0], (28, 28))
-
-def plotGeneratedImages(epoch, generator, imageDimension, examples=100, dim=(10, 10), figsize=(10, 10)):
-    noise = np.random.normal(0, 1, size=[examples, dim[0]*dim[1]])
-    generated_images = generator.predict(noise)
-    generated_images = generated_images.reshape(examples, imageDimension[0], imageDimension[1])
-    plt.figure(figsize=figsize)
-    for i in range(generated_images.shape[0]):
-        plt.subplot(dim[0], dim[1], i+1)
-        plt.imshow(generated_images[i], interpolation='nearest', cmap='gray_r')
-        plt.axis('off')
-    plt.tight_layout()
-    plt.savefig('gan_generated_image_epoch_%d.png' % epoch)
+        displayFunction(GAN, epoch)
 
 def buildDNNModel(inputSize, outputSize, hiddenLayers=4, defaultLayerSize=16, finalActivation='tanh', optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5)):
     # layers is either an integer, or an array of nodes per layer
