@@ -8,6 +8,10 @@ from tensorflow.keras import models
 from tqdm import tqdm
 from copy import copy
 
+config = tf.ConfigProto(log_device_placement=True)
+config.gpu_options.allow_growth = True
+sess = tf.InteractiveSession(config=config)
+
 def buildGANModel(inputShape, generatorLayers=4, discriminatorLayers=4, defaultLayerSize=16, outputs=1, randomSize=100, finalActivation='sigmoid',
                   optimizers=[keras.optimizers.Adam(lr=0.0002, beta_1=0.5),keras.optimizers.Adam(lr=0.0002, beta_1=0.5), keras.optimizers.Adam(lr=0.0002, beta_1=0.5)]):
     

@@ -18,6 +18,11 @@ def JPGExtension(fileName):
         return True
     return False
 
+def PNGExtension(fileName):
+    if ".png" in fileName.lower():
+        return True
+    return False
+
 def normalizeInput(rawImage):
     normalizedImage = []
     for i in range(len(rawImage)):
@@ -29,18 +34,19 @@ def normalizeInput(rawImage):
             normalizedImage.append((rawImage[i]/255)*2-1)
     return normalizedImage
 
-def prepInput(inputDirectory=currentDir+"/R_Images",
+def prepInput(inputDirectory="C:/Users/Samuel Troper/Pictures/Im-DB",
               newWidth=100, newHeight=100):
-    #Currently will only import JPG
-    directoryJPGList = list(filter(JPGExtension, os.listdir(inputDirectory)))
+    directoryList = list(filter(JPGExtension, os.listdir(inputDirectory)))
+    directoryList.extend(list(filter(PNGExtension, os.listdir(inputDirectory))))
     images = []
     iteration = 0
     global largestWidth
     global largestHeight
-    for image in directoryJPGList:
+    for image in directoryList:
         #if iteration > 100: #REMOVE 4 REAL
             #break
         print(iteration)
+        print(image)
         iteration += 1
         currentImage = Image.open(inputDirectory + "/" + image)
         width = currentImage.size[0]
@@ -51,7 +57,7 @@ def prepInput(inputDirectory=currentDir+"/R_Images",
             largestHeight = height
         currentImageInfo = [width, height]
         currentImage = currentImage.resize((newWidth,newHeight))
-        for pixel in list(currentImage.getdata()):
+        for pixel in list(currentImage.convert('RGB').getdata()):
             currentImageInfo.extend(pixel)
         images.append(currentImageInfo)
     normalizedImages = list(map(normalizeInput, images))
@@ -82,19 +88,27 @@ def linearToRGB(image):
             currentPixel = []
     return tuple(newImage)
 
-def generateAndSave(GAN, epoch, imageDimension=(100,100), number=5):
+def generateAndSave(GAN, epoch, imageDimension=(88,88), number=5):
     generator = GAN[0]
+    if epoch % 500 == 0:
+        filename = outputDir+'/epoch' + str(epoch) + '/GAN[0].h5'
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        GAN[0].save(filename)
+        filename = outputDir+'/epoch' + str(epoch) + '/GAN[1].h5'
+        GAN[1].save(filename)
+        filename = outputDir+'/epoch' + str(epoch) + '/GAN[2].h5'
+        GAN[2].save(filename)
     for i in range(number):
         noise = np.random.normal(0, 1, size=[1, GAN[3]])
         generatedImage = generator.predict(noise)[0]
         displayImage(generatedImage, imageDimension[0], imageDimension[1], epoch, i)
     
 
-def test_GAN(newWidth=100, newHeight=100):
-    models = combo.buildGANModel(newWidth*newHeight*3+2, [256, 512, 1024, 2048], [1024, 512, 256])
+def test_GAN(newWidth=88, newHeight=88):
+    models = combo.buildGANModel(newWidth*newHeight*3+2, [128, 256, 512, 1024, 2048, 4096], [1024, 512, 256])
     data = prepInput(newWidth=newWidth, newHeight=newHeight)
     data = np.array(data)
-    combo.trainGAN(models, data, epochs=10000, batchSize=16, displayFunction=generateAndSave)
+    combo.trainGAN(models, data, epochs=10000, batchSize=64, displayFunction=generateAndSave)
 
 test_GAN()
 
