@@ -15,7 +15,7 @@ sess = tf.InteractiveSession(config=config)
 def buildGANModel(inputShape, generatorLayers=4, discriminatorLayers=4, defaultLayerSize=16, outputs=1, randomSize=100, finalActivation='sigmoid',
                   optimizers=[keras.optimizers.Adam(lr=0.0002, beta_1=0.5),keras.optimizers.Adam(lr=0.0002, beta_1=0.5), keras.optimizers.Adam(lr=0.0002, beta_1=0.5)]):
     
-    generator = buildDNNModel(randomSize, inputShape, generatorLayers, defaultLayerSize, optimizer=optimizers[0])
+    generator = buildDNNModel(randomSize, inputShape, generatorLayers, defaultLayerSize, optimizer=optimizers[0], batchNormalization=True)
     discriminator = buildDNNModel(inputShape, outputs, discriminatorLayers, defaultLayerSize, finalActivation=finalActivation, optimizer=optimizers[1])
     return [generator, discriminator, GANCompiler(randomSize, generator, discriminator, optimizer=optimizers[2]), randomSize]
 
@@ -78,7 +78,7 @@ def trainGAN(GAN, trainingX, epochs=1, batchSize=128, displayFunction=plotGenera
         
         displayFunction(GAN, epoch)
 
-def buildDNNModel(inputSize, outputSize, hiddenLayers=4, defaultLayerSize=16, finalActivation='tanh', optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5)):
+def buildDNNModel(inputSize, outputSize, hiddenLayers=4, defaultLayerSize=16, finalActivation='tanh', optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), batchNormalization=False):
     # layers is either an integer, or an array of nodes per layer
 
     #Checks that hiddenLayers is a proper input
@@ -95,6 +95,8 @@ def buildDNNModel(inputSize, outputSize, hiddenLayers=4, defaultLayerSize=16, fi
             model.add(layers.Dense(hiddenLayers[i], input_dim=inputSize, kernel_initializer=keras.initializers.RandomNormal(stddev=0.02))) #note the kernel
         else:
             model.add(layers.Dense(hiddenLayers[i]))
+        if batchNormalization:
+            model.add(layers.BatchNormalization())
         model.add(layers.LeakyReLU())
         model.add(layers.Dropout(.1))
     model.add(layers.Dense(outputSize, activation=finalActivation))

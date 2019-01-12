@@ -88,9 +88,9 @@ def linearToRGB(image):
             currentPixel = []
     return tuple(newImage)
 
-def generateAndSave(GAN, epoch, imageDimension=(88,88), number=5):
+def generateAndSave(GAN, epoch, imageDimension=(100,100), number=5, save=True, saveInterval=10000):
     generator = GAN[0]
-    if epoch % 500 == 0:
+    if epoch % saveInterval == 0 and save and epoch is not 0:
         filename = outputDir+'/epoch' + str(epoch) + '/GAN[0].h5'
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         GAN[0].save(filename)
@@ -104,11 +104,11 @@ def generateAndSave(GAN, epoch, imageDimension=(88,88), number=5):
         displayImage(generatedImage, imageDimension[0], imageDimension[1], epoch, i)
     
 
-def test_GAN(newWidth=88, newHeight=88):
-    models = combo.buildGANModel(newWidth*newHeight*3+2, [128, 256, 512, 1024, 2048, 4096], [1024, 512, 256])
+def test_GAN(newWidth=100, newHeight=100):
+    models = combo.buildGANModel(newWidth*newHeight*3+2, [128, 256, 512, 1024, 2048, 4096], [256, 256, 128, 16, 8, 4, 2])
     data = prepInput(newWidth=newWidth, newHeight=newHeight)
     data = np.array(data)
-    combo.trainGAN(models, data, epochs=10000, batchSize=64, displayFunction=generateAndSave)
+    combo.trainGAN(models, data, epochs=100000, batchSize=128, displayFunction=generateAndSave)
 
 test_GAN()
 
