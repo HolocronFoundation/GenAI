@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 config = tf.ConfigProto(log_device_placement=True)
-config.gpu_options.allow_growth = True
 sess = tf.InteractiveSession(config=config)
 
 

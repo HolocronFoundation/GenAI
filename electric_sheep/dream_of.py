@@ -31,28 +31,25 @@ def prep_input(new_width, new_height, input_directory):
     images = []
     global largest_width
     global largestHeight
-    for i,image in enumerate(directory_list):
+    for i, image in enumerate(directory_list):
         #if iteration > 100: #REMOVE 4 REAL
             #break
         if i%2400 == 0:
             print("Processing image " + str(i) + " of " + str(len(directory_list)))
-        current_image = Image.open(input_directory + "/" + image)
-        width = current_image.size[0]
-        height = current_image.size[1]
-        if width > largest_width:
-            largest_width = width
-        if height > largestHeight:
-            largestHeight = height
-        current_image_info = [width, height]
-        current_image = current_image.resize((new_width, new_height))
-        for pixel in list(current_image.convert('RGB').getdata()):
-            current_image_info.extend(pixel)
-        images.append(current_image_info)
-    normalized_images = list(map(normalize_input, images))
-    #print("Ok")
-    #for i in range(10):
-    #    display_image(normalized_images[i], new_width, new_height)
-    return normalized_images
+        if i%10 == 0:# TODO: Right now this loads 10% of the data. Ideally, we'd like to shuffle and shard the data and use all of it. This should be based upon system RAM size. We probably want to limit it to 1/2 of RAM to allow plenty of extra space.
+            current_image = Image.open(input_directory + "/" + image)
+            width = current_image.size[0]
+            height = current_image.size[1]
+            if width > largest_width:
+                largest_width = width
+            if height > largestHeight:
+                largestHeight = height
+            current_image_info = [width, height]
+            current_image = current_image.resize((new_width, new_height))
+            for pixel in list(current_image.convert('RGB').getdata()):
+                current_image_info.extend(pixel)
+            images.append(normalize_input(current_image_info))
+    return images
 
 def display_image(image, epoch, iteration, output_dir):
     temp = Image.new('RGB', (image["width"], image["height"]))
@@ -112,7 +109,7 @@ def test_GAN(image={"width":100,"height":100}): # TODO: Add BW option
     models = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator":[128, 256, 512, 1024, 2048, 4096], "discriminator":[256, 256, 128, 16, 8, 4, 2]})
     data = prep_input(image["width"], image["height"], "/media/troper/Troper_Work-DB/dreams_of/electric_sheep")
     data = np.array(data)
-    combo.train_gan(models, data, image, epochs=100000, batch_size=128, display_function=generate_and_save)
+    combo.train_gan(models, data, image, epochs=100000, batch_size=256, display_function=generate_and_save)
 
 test_GAN()
 
