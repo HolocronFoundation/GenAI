@@ -1,3 +1,4 @@
+
 import cv2
 
 def convert_to_image(video, output, progress_dot_frequency=240000):
@@ -50,35 +51,33 @@ def convert_to_image(video, output, progress_dot_frequency=240000):
             print(".", end="", flush=True)
         count += 1
 
+def process(name, input_dir, input_type, output_dir, output_type):
+    """Helper method which formats inputs to convert_to_image.
+
+    Parameters
+    ----------
+    name : str
+        Name of the input file.
+    input_dir : str
+        Path of the input file directory.
+    input_type : str
+        Type of input.
+    output_dir : str
+        Path of the output file directory.
+    output_type : type
+        Type of output.
+    """
+    convert_to_image({"dir": input_dir, "name": name, "type": input_type},
+                     {"dir": output_dir, "name": name, "type": output_type})
 
 def __main__():
-    video_dir = "/media/troper/Troper_Primary-D/Media/Movies/"
-    video_type = ".mp4"
-    # TODO: Create a factory method to generate these items
-    video_original = {
-        "dir": video_dir,
-        "name": "Blade Runner (Final Cut)",
-        "type": video_type
-    }
-    video_2049 = {
-        "dir": video_dir,
-        "name": "Blade Runner 2049",
-        "type": video_type
-    }
+    input_dir = "/media/troper/Troper_Primary-D/Media/Movies/"
+    input_type = ".mp4"
     output_dir = "/media/troper/Troper_Work-DB/electric_sheep/"
-    image_type = ".jpg"
-    output_original = {
-        "dir": output_dir,
-        "name": "blade_runner",
-        "type": image_type
-    }
-    output_2049 = {
-        "dir": output_dir,
-        "name": "blade_runner_2049",
-        "type": image_type
-    }
-    convert_to_image(video_original, output_original)
-    convert_to_image(video_2049, output_2049)
+    output_type = ".jpg"
+    to_process = ["Blade Runner (Final Cut)", "Blade Runner 2049"]
+    for video in to_process:
+        process(video, input_dir, input_type, output_dir, output_type)
 
 if __name__ == '__main__':
     __main__()

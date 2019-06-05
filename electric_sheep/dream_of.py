@@ -3,7 +3,7 @@ import sys
 import os
 import numpy as np
 from PIL import Image
-sys.path.append('/media/troper/Troper_Primary-D/Projects/QuickTMI/QuickTMI')
+sys.path.append('/main-d/Projects/QuickTMI/QuickTMI')
 import combo
 
 largest_width = 0
@@ -12,7 +12,7 @@ largestHeight = 0
 def check_extension(file_name, extension):
     if extension in file_name.lower():
         return True
-    return False # TODO: Creat a save in place option TODO: Cleanup some of these defaults
+    return False
 
 def normalize_input(raw_image):
     normalized_image = []
@@ -26,18 +26,16 @@ def normalize_input(raw_image):
     return normalized_image
 
 def prep_input(new_width, new_height, input_directory):
-    directory_list = list(filter(lambda x: check_extension(x, ".jpg"), input_directory))
-    directory_list.extend(list(filter(lambda x: check_extension(x, ".png"), input_directory)))
+    directory_list = list(filter(lambda x: check_extension(x, ".jpg"), os.listdir(input_directory)))
+    directory_list.extend(list(filter(lambda x: check_extension(x, ".png"), os.listdir(input_directory))))
     images = []
-    iteration = 0
     global largest_width
     global largestHeight
-    for image in directory_list:
+    for i,image in enumerate(directory_list):
         #if iteration > 100: #REMOVE 4 REAL
             #break
-        print(iteration)
-        print(image)
-        iteration += 1
+        if i%2400 == 0:
+            print("Processing image " + str(i) + " of " + str(len(directory_list)))
         current_image = Image.open(input_directory + "/" + image)
         width = current_image.size[0]
         height = current_image.size[1]
@@ -58,9 +56,9 @@ def prep_input(new_width, new_height, input_directory):
 
 def display_image(image, epoch, iteration, output_dir):
     temp = Image.new('RGB', (image["width"], image["height"]))
-    temp.putdata(linearToRGB(image[2:]))
-    adjusted_width = int(largest_width*(image[0]+1)/2)
-    adjusted_height = int(largestHeight*(image[1]+1)/2)
+    temp.putdata(linearToRGB(image["generated"][2:]))
+    adjusted_width = int(largest_width*(image["generated"][0]+1)/2)
+    adjusted_height = int(largestHeight*(image["generated"][1]+1)/2)
     if adjusted_width > 0 and adjusted_height > 0:
         filename = output_dir +'/epoch' + str(epoch) + '/' + str(iteration) + '.png'
         temp = temp.resize((adjusted_width, adjusted_height))
@@ -114,7 +112,7 @@ def test_GAN(image={"width":100,"height":100}): # TODO: Add BW option
     models = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator":[128, 256, 512, 1024, 2048, 4096], "discriminator":[256, 256, 128, 16, 8, 4, 2]})
     data = prep_input(image["width"], image["height"], "/media/troper/Troper_Work-DB/dreams_of/electric_sheep")
     data = np.array(data)
-    combo.train_gan(models, data, image, epochs=100000, batchSize=128, displayFunction=generate_and_save)
+    combo.train_gan(models, data, image, epochs=100000, batch_size=128, display_function=generate_and_save)
 
 test_GAN()
 
