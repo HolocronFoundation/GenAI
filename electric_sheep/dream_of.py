@@ -26,17 +26,19 @@ def normalize_input(raw_image):
     return normalized_image
 
 def prep_input(new_width, new_height, input_directory):
+    iters = 24
     directory_list = list(filter(lambda x: check_extension(x, ".jpg"), os.listdir(input_directory)))
     directory_list.extend(list(filter(lambda x: check_extension(x, ".png"), os.listdir(input_directory))))
-    images = []
+    images = np.empty((int(len(directory_list)/iters)+1, new_width*new_height*3+2), np.float64)
     global largest_width
     global largestHeight
+    np_index = 0
     for i, image in enumerate(directory_list):
         #if iteration > 100: #REMOVE 4 REAL
             #break
         if i%2400 == 0:
             print("Processing image " + str(i) + " of " + str(len(directory_list)))
-        if i%10 == 0:# TODO: Right now this loads 10% of the data. Ideally, we'd like to shuffle and shard the data and use all of it. This should be based upon system RAM size. We probably want to limit it to 1/2 of RAM to allow plenty of extra space.
+        if i%iters == 0:# TODO: Right now this loads 4.1% of the data. Ideally, we'd like to shuffle and shard the data and use all of it. This should be based upon system RAM size. We probably want to limit it to 1/2 of RAM to allow plenty of extra space.
             current_image = Image.open(input_directory + "/" + image)
             width = current_image.size[0]
             height = current_image.size[1]
@@ -48,7 +50,8 @@ def prep_input(new_width, new_height, input_directory):
             current_image = current_image.resize((new_width, new_height))
             for pixel in list(current_image.convert('RGB').getdata()):
                 current_image_info.extend(pixel)
-            images.append(normalize_input(current_image_info))
+            images[np_index] = normalize_input(current_image_info)
+            np_index += 1
     return images
 
 def display_image(image, epoch, iteration, output_dir):
@@ -108,8 +111,7 @@ def generate_and_save(GAN, epoch, image, number=5, save=None):
 def test_GAN(image={"width":100,"height":100}): # TODO: Add BW option
     models = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator":[128, 256, 512, 1024, 2048, 4096], "discriminator":[256, 256, 128, 16, 8, 4, 2]})
     data = prep_input(image["width"], image["height"], "/media/troper/Troper_Work-DB/dreams_of/electric_sheep")
-    data = np.array(data)
-    combo.train_gan(models, data, image, epochs=100000, batch_size=256, display_function=generate_and_save)
+    combo.train_gan(models, data, image, epochs=100000, batch_size=128, display_function=generate_and_save)
 
 test_GAN()
 
