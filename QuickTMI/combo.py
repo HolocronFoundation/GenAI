@@ -1,108 +1,129 @@
-import os
+
 import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import models
+import numpy as np
+import matplotlib.pyplot as plt
 from tqdm import tqdm
-from copy import copy
 
 config = tf.ConfigProto(log_device_placement=True)
 config.gpu_options.allow_growth = True
 sess = tf.InteractiveSession(config=config)
 
-def buildGANModel(inputShape, generatorLayers=4, discriminatorLayers=4, defaultLayerSize=16, outputs=1, randomSize=100, finalActivation='sigmoid',
-                  optimizers=[keras.optimizers.Adam(lr=0.0002, beta_1=0.5),keras.optimizers.Adam(lr=0.0002, beta_1=0.5), keras.optimizers.Adam(lr=0.0002, beta_1=0.5)]):
-    
-    generator = buildDNNModel(randomSize, inputShape, generatorLayers, defaultLayerSize, optimizer=optimizers[0], batchNormalization=True)
-    discriminator = buildDNNModel(inputShape, outputs, discriminatorLayers, defaultLayerSize, finalActivation=finalActivation, optimizer=optimizers[1])
-    return [generator, discriminator, GANCompiler(randomSize, generator, discriminator, optimizer=optimizers[2]), randomSize]
 
-def GANCompiler(inputSize, generator, discriminator, optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy'):
+def build_gan_model(input_shape, layer_config=None, default_layer_size=16,
+                    outputs=1, random_size=100, final_activation='sigmoid',
+                    optimizers=None):
+
+    if layer_config is None:
+        layer_config = {"generator": 4, "discriminator": 4}
+    if optimizers is None:
+        optimizers = [keras.optimizers.Adam(lr=0.0002, beta_1=0.5),
+                      keras.optimizers.Adam(lr=0.0002, beta_1=0.5),
+                      keras.optimizers.Adam(lr=0.0002, beta_1=0.5)]
+
+    generator = build_dnn_model(random_size, input_shape, layer_config["generator"],
+                                default_layer_size, optimizer=optimizers[0],
+                                batch_normalization=True)
+    discriminator = build_dnn_model(input_shape, outputs, layer_config["discriminator"],
+                                    default_layer_size, final_activation=final_activation,
+                                    optimizer=optimizers[1])
+    return [generator, discriminator, gan_compiler(random_size, generator, discriminator, optimizer=optimizers[2]), random_size]
+
+
+def gan_compiler(input_size, generator, discriminator, optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy'):
     discriminator.trainable = False
-    GAN_input = layers.Input(shape=(inputSize,))
-    GAN_output = discriminator(generator(GAN_input))
-    GAN = keras.Model(inputs=GAN_input, outputs=GAN_output)
-    GAN.compile(loss=loss, optimizer=optimizer)
-    return GAN
+    gan_input = layers.Input(shape=(input_size,))
+    gan_output = discriminator(generator(gan_input))
+    gan = keras.Model(inputs=gan_input, outputs=gan_output)
+    gan.compile(loss=loss, optimizer=optimizer)
+    return gan
 
-def MNIST_GAN_Test():
-    models = buildGANModel(784, [256, 512, 1024], [1024, 512, 256])
-    trainGAN(models, loadMNISTData(), epochs=100)
+
+def MNIST_gan_Test():
+    model = build_gan_model(784, [256, 512, 1024], [1024, 512, 256])
+    train_gan(model, loadMNISTData(), {"width":10, "height":10}, epochs=100)
+
 
 def loadMNISTData():
-    (xTrain, yTrain), (x_test, y_test) = keras.datasets.mnist.load_data()
-    xTrain = (xTrain.astype(np.float32) - 127.5)/127.5
-    xTrain = xTrain.reshape(60000, 784) #Learn more about this reshape
-    return xTrain
+    (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+    x_train = (x_train.astype(np.float32) - 127.5) / 127.5
+    x_train = x_train.reshape(60000, 784)  # Learn more about this reshape
+    return x_train
 
-def plotGeneratedImages(GAN, epoch, imageDimension=(28, 28), examples=100, dim=(10, 10), figsize=(10, 10)):
-    generator = GAN[0]
-    noise = np.random.normal(0, 1, size=[examples, GAN[3]])
+
+def plot_generated_images(gan, epoch, image, examples=100, dim=(10, 10), figsize=(10, 10)):
+    generator = gan[0]
+    noise = np.random.normal(0, 1, size=[examples, gan[3]])
     generated_images = generator.predict(noise)
-    generated_images = generated_images.reshape(examples, imageDimension[0], imageDimension[1])
+    generated_images = generated_images.reshape(
+        examples, image["width"], image["height"])
     plt.figure(figsize=figsize)
     for i in range(generated_images.shape[0]):
-        plt.subplot(dim[0], dim[1], i+1)
+        plt.subplot(dim[0], dim[1], i + 1)
         plt.imshow(generated_images[i], interpolation='nearest', cmap='gray_r')
         plt.axis('off')
     plt.tight_layout()
     plt.savefig('gan_generated_image_epoch_%d.png' % epoch)
 
-def trainGAN(GAN, trainingX, epochs=1, batchSize=128, displayFunction=plotGeneratedImages):
-    #[[Turn GAN into dictionary instead of array
-    xTrain = trainingX
-    batchCount = int(xTrain.shape[0] / batchSize)
+
+def train_gan(gan, training_x, image, epochs=1, batch_size=128, display_function=plot_generated_images):
+    # [[Turn gan into dictionary instead of array
+    batch_count = int(training_x.shape[0] / batch_size)
 
     for epoch in range(epochs):
         print("Epoch: " + str(epoch))
-        for i in tqdm(range(batchCount)):
+        for i in tqdm(range(batch_count)):
             print()
-            noise = np.random.normal(0, 1, size=[batchSize, GAN[3]])
-            batch = xTrain[np.random.randint(0, xTrain.shape[0], size=batchSize)]
+            noise = np.random.normal(0, 1, size=[batch_size, gan[3]])
+            batch = training_x[np.random.randint(
+                0, training_x.shape[0], size=batch_size)]
 
-            generated = GAN[0].predict(noise)
-            X = np.concatenate([batch, generated])
+            generated = gan[0].predict(noise)
+            x = np.concatenate([batch, generated])
 
-            yDis = np.zeros(2*batchSize)
-            yDis[:batchSize] = .9
+            y_dis = np.zeros(2 * batch_size)
+            y_dis[:batch_size] = .9
 
-            GAN[1].trainable = True
-            GAN[1].train_on_batch(X, yDis)
+            gan[1].trainable = True
+            gan[1].train_on_batch(x, y_dis)
 
-            noise = np.random.normal(0, 1, size=[batchSize, GAN[3]])
-            yGen = np.ones(batchSize)
-            GAN[1].trainable = False
-            GAN[2].train_on_batch(noise, yGen)
-        
-        displayFunction(GAN, epoch)
+            noise = np.random.normal(0, 1, size=[batch_size, gan[3]])
+            y_gen = np.ones(batch_size)
+            gan[1].trainable = False
+            gan[2].train_on_batch(noise, y_gen)
 
-def buildDNNModel(inputSize, outputSize, hiddenLayers=4, defaultLayerSize=16, finalActivation='tanh', optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), batchNormalization=False):
+        display_function(gan, epoch, image)  # TODO: Changes needed HERE!!!
+
+
+def build_dnn_model(input_size, output_size, hidden_layers=4, default_layer_size=16, final_activation='tanh', optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), batch_normalization=False):
     # layers is either an integer, or an array of nodes per layer
 
-    #Checks that hiddenLayers is a proper input
-    if isinstance(hiddenLayers, int):
-        hiddenLayers = [defaultLayerSize]*hiddenLayers
-    elif not isinstance(hiddenLayers, list):
-        raise TypeError('buildDNNModel takes either an integer or a list as an input, you provided an input of type: ' + type(hiddenLayers))
-    
+    # Checks that hidden_layers is a proper input
+    if isinstance(hidden_layers, int):
+        hidden_layers = [default_layer_size] * hidden_layers
+    elif not isinstance(hidden_layers, list):
+        raise TypeError(
+            'build_dnn_model takes either an integer or a list as an input, you provided an input of type: ' + type(hidden_layers))
+
     model = models.Sequential()
 
-    #Converts hiddenLayers into a network
-    for i in range(len(hiddenLayers)):
+    # Converts hidden_layers into a network
+    for i, layer in enumerate(hidden_layers):
         if i == 0:
-            model.add(layers.Dense(hiddenLayers[i], input_dim=inputSize, kernel_initializer=keras.initializers.RandomNormal(stddev=0.02))) #note the kernel
+            model.add(layers.Dense(layer, input_dim=input_size, kernel_initializer=keras.initializers.RandomNormal(
+                stddev=0.02)))  # note the kernel
         else:
-            model.add(layers.Dense(hiddenLayers[i]))
-        if batchNormalization:
+            model.add(layers.Dense(layer))
+        if batch_normalization:
             model.add(layers.BatchNormalization())
         model.add(layers.LeakyReLU())
         model.add(layers.Dropout(.1))
-    model.add(layers.Dense(outputSize, activation=finalActivation))
+    model.add(layers.Dense(output_size, activation=final_activation))
 
     model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     return model
 
-    #~~~ Current unmarked things - if hiddenlayer is a list, it must be integers.
+    # ~~~ Current unmarked things - if hiddenlayer is a list, it must be integers.

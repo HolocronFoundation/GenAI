@@ -3,10 +3,8 @@ import sys
 import os
 import numpy as np
 from PIL import Image
-sys.path.append('C:/Users/Samuel Troper/Documents/GitHub/QuickTMI/QuickTMI') # TODO: Change this path
+sys.path.append('/media/troper/Troper_Primary-D/Projects/QuickTMI/QuickTMI')
 import combo
-
-output_dir ='D:/dAlI Output' # TODO: Change this
 
 largest_width = 0
 largestHeight = 0
@@ -14,7 +12,7 @@ largestHeight = 0
 def check_extension(file_name, extension):
     if extension in file_name.lower():
         return True
-    return False
+    return False # TODO: Creat a save in place option TODO: Cleanup some of these defaults
 
 def normalize_input(raw_image):
     normalized_image = []
@@ -58,8 +56,8 @@ def prep_input(new_width, new_height, input_directory):
     #    display_image(normalized_images[i], new_width, new_height)
     return normalized_images
 
-def display_image(image, new_width, new_height, epoch, iteration):
-    temp = Image.new('RGB', (new_width, new_height))
+def display_image(image, epoch, iteration, output_dir):
+    temp = Image.new('RGB', (image["width"], image["height"]))
     temp.putdata(linearToRGB(image[2:]))
     adjusted_width = int(largest_width*(image[0]+1)/2)
     adjusted_height = int(largestHeight*(image[1]+1)/2)
@@ -80,27 +78,43 @@ def linearToRGB(image):
             current_pixel = []
     return tuple(new_image)
 
-def generateAndSave(GAN, epoch, imageDimension=(100,100), number=5, save=True, saveInterval=10000): # TODO: Creat a save in place option TODO: Cleanup some of these defaults
+def generate_and_save(GAN, epoch, image, number=5, save=None):
+    if save is None:
+        save = {
+            "on": True,
+            "interval": 10000,
+            "in_place": True,
+            "directory": '/media/troper/Troper_Work-DB/dreams_of/output'
+        }
     generator = GAN[0]
-    if epoch % saveInterval == 0 and save and epoch != 0:
-        filename = output_dir +'/epoch' + str(epoch) + '/GAN[0].h5'
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        GAN[0].save(filename)
-        filename = output_dir +'/epoch' + str(epoch) + '/GAN[1].h5'
-        GAN[1].save(filename)
-        filename = output_dir +'/epoch' + str(epoch) + '/GAN[2].h5'
-        GAN[2].save(filename)
+    if epoch % save["interval"] == 0 and save["on"] and epoch != 0:
+        if save["in_place"]:
+            filename = save["directory"] + '/GAN[0].h5'
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            GAN[0].save(filename)
+            filename = save["directory"] + '/GAN[1].h5'
+            GAN[1].save(filename)
+            filename = save["directory"] + '/GAN[2].h5'
+            GAN[2].save(filename)
+        else:
+            filename = save["directory"] +'/epoch' + str(epoch) + '/GAN[0].h5'
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            GAN[0].save(filename)
+            filename = save["directory"] +'/epoch' + str(epoch) + '/GAN[1].h5'
+            GAN[1].save(filename)
+            filename = save["directory"] +'/epoch' + str(epoch) + '/GAN[2].h5'
+            GAN[2].save(filename)
     for i in range(number):
         noise = np.random.normal(0, 1, size=[1, GAN[3]])
-        generated_image = generator.predict(noise)[0]
-        display_image(generated_image, imageDimension[0], imageDimension[1], epoch, i)
+        image["generated"] = generator.predict(noise)[0]
+        display_image(image, epoch, i, save["directory"])
 
 
-def test_GAN(output_image={"width":100,"height":100}): # TODO: Add BW option
-    models = combo.buildGANModel(output_image["width"]*output_image["height"]*3+2, [128, 256, 512, 1024, 2048, 4096], [256, 256, 128, 16, 8, 4, 2])
-    data = prep_input(output_image["width"], output_image["height"], "C:/Users/Samuel Troper/Pictures/Im-DB") # TODO: Change this directory
+def test_GAN(image={"width":100,"height":100}): # TODO: Add BW option
+    models = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator":[128, 256, 512, 1024, 2048, 4096], "discriminator":[256, 256, 128, 16, 8, 4, 2]})
+    data = prep_input(image["width"], image["height"], "/media/troper/Troper_Work-DB/dreams_of/electric_sheep")
     data = np.array(data)
-    combo.trainGAN(models, data, epochs=100000, batchSize=128, displayFunction=generateAndSave)
+    combo.train_gan(models, data, image, epochs=100000, batchSize=128, displayFunction=generate_and_save)
 
 test_GAN()
 

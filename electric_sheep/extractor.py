@@ -65,7 +65,7 @@ def __main__():
         "name": "Blade Runner 2049",
         "type": video_type
     }
-    output_dir = "/media/troper/Troper_Primary-D/~temp/"
+    output_dir = "/media/troper/Troper_Work-DB/electric_sheep/"
     image_type = ".jpg"
     output_original = {
         "dir": output_dir,
