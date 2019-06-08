@@ -28,7 +28,15 @@ def build_gan_model(input_shape, layer_config=None, default_layer_size=16,
     discriminator = build_dnn_model(input_shape, outputs, layer_config["discriminator"],
                                     default_layer_size, final_activation=final_activation,
                                     optimizer=optimizers[1])
-    return [generator, discriminator, gan_compiler(random_size, generator, discriminator, optimizer=optimizers[2]), random_size]
+    return {
+        "networks": {
+            "generator": generator,
+            "discriminator": discriminator,
+            "gan": gan_compiler(random_size, generator, discriminator, optimizer=optimizers[2])
+        },
+        "seed_size": random_size,
+        "epoch_current": 0 # TODO: Check this more
+    }
 
 
 def gan_compiler(input_size, generator, discriminator, optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy'):
@@ -42,7 +50,7 @@ def gan_compiler(input_size, generator, discriminator, optimizer=keras.optimizer
 
 def MNIST_gan_Test():
     model = build_gan_model(784, [256, 512, 1024], [1024, 512, 256])
-    train_gan(model, loadMNISTData(), {"width":10, "height":10}, epochs=100)
+    train_gan(model, loadMNISTData(), {"width":10, "height":10}, epoch_total=100)
 
 
 def loadMNISTData():
@@ -52,9 +60,9 @@ def loadMNISTData():
     return x_train
 
 
-def plot_generated_images(gan, epoch, image, examples=100, dim=(10, 10), figsize=(10, 10)):
-    generator = gan[0]
-    noise = np.random.normal(0, 1, size=[examples, gan[3]])
+def plot_generated_images(gan, image, examples=100, dim=(10, 10), figsize=(10, 10)):
+    generator = gan["networks"]["generator"]
+    noise = np.random.normal(0, 1, size=[examples, gan["seed_size"]])
     generated_images = generator.predict(noise)
     generated_images = generated_images.reshape(
         examples, image["width"], image["height"])
@@ -64,36 +72,36 @@ def plot_generated_images(gan, epoch, image, examples=100, dim=(10, 10), figsize
         plt.imshow(generated_images[i], interpolation='nearest', cmap='gray_r')
         plt.axis('off')
     plt.tight_layout()
-    plt.savefig('gan_generated_image_epoch_%d.png' % epoch)
+    plt.savefig('gan_generated_image_epoch_%d.png' % gan["epoch_current"])
 
 
-def train_gan(gan, training_x, image, epochs=1, batch_size=128, display_function=plot_generated_images):
+def train_gan(gan, training_x, image, epoch_total=1, batch_size=128, display_function=plot_generated_images):
     # [[Turn gan into dictionary instead of array
     batch_count = int(training_x.shape[0] / batch_size)
 
-    for epoch in range(epochs):
+    for epoch in range(gan["epoch_current"], epoch_total):
         print("Epoch: " + str(epoch))
         for i in tqdm(range(batch_count)):
             print()
-            noise = np.random.normal(0, 1, size=[batch_size, gan[3]])
+            noise = np.random.normal(0, 1, size=[batch_size, gan["seed_size"]])
             batch = training_x[np.random.randint(
                 0, training_x.shape[0], size=batch_size)]
 
-            generated = gan[0].predict(noise)
+            generated = gan["networks"]["generator"].predict(noise)
             x = np.concatenate([batch, generated])
 
             y_dis = np.zeros(2 * batch_size)
             y_dis[:batch_size] = .9
 
-            gan[1].trainable = True
-            gan[1].train_on_batch(x, y_dis)
+            gan["networks"]["discriminator"].trainable = True
+            gan["networks"]["discriminator"].train_on_batch(x, y_dis)
 
-            noise = np.random.normal(0, 1, size=[batch_size, gan[3]])
+            noise = np.random.normal(0, 1, size=[batch_size, gan["seed_size"]])
             y_gen = np.ones(batch_size)
-            gan[1].trainable = False
-            gan[2].train_on_batch(noise, y_gen)
-
-        display_function(gan, epoch, image)  # TODO: Changes needed HERE!!!
+            gan["networks"]["discriminator"].trainable = False
+            gan["networks"]["gan"].train_on_batch(noise, y_gen)
+        display_function(gan, image)  # TODO: Changes needed HERE!!!
+        gan["epoch_current"] += 1
 
 
 def build_dnn_model(input_size, output_size, hidden_layers=4, default_layer_size=16, final_activation='tanh', optimizer=keras.optimizers.Adam(lr=0.0002, beta_1=0.5), batch_normalization=False):

@@ -1,13 +1,37 @@
 
 import sys
 import os
+import json
+import atexit
 import numpy as np
 from PIL import Image
-sys.path.append('/main-d/Projects/QuickTMI/QuickTMI')
+from tensorflow.keras import models
+sys.path.append('/media/troper/Troper_Primary-D/Projects/QuickTMI/QuickTMI')
 import combo
 
-largest_width = 0
-largestHeight = 0
+# TODO: Add more model summary statistics when saved
+# TODO: Create more optionality - allow swapping in various generators and discriminators in order to create a more flexible network
+# TODO: Test save on exit
+
+IMAGE = {"width":100, "height":100}
+WORKING_ROOT = "/media/troper/Troper_Work-DB/dreams_of/"
+INPUT_DIR = "electric_sheep/"
+OUTPUT_DIR = "output/"
+EPOCHS = 100000
+BATCH_SIZE = 16
+SHUFFLE = True
+MODEL_NAMES = ["generator", "discriminator", "gan"]
+GENERATOR_LAYERS = [128, 256, 512, 1024, 2048, 4096]
+DISCRIMINATOR_LAYERS = [128, 16, 8, 4, 2]
+SAVE = {
+    "on": True,
+    "interval": 100,
+    "in_place": True,
+    "directory": WORKING_ROOT + OUTPUT_DIR
+}
+TEST_IMAGE_COUNT = 10
+LARGEST_HEIGHT = 0
+LARGEST_WIDTH = 0
 
 def check_extension(file_name, extension):
     if extension in file_name.lower():
@@ -18,52 +42,51 @@ def normalize_input(raw_image):
     normalized_image = []
     for i, value in enumerate(raw_image):
         if i == 0:
-            normalized_image.append((value/largest_width)*2-1)
+            normalized_image.append((value/LARGEST_WIDTH)*2-1)
         elif i == 1:
-            normalized_image.append((value/largestHeight)*2-1)
+            normalized_image.append((value/LARGEST_HEIGHT)*2-1)
         else:
             normalized_image.append((value/255)*2-1)
     return normalized_image
 
-def prep_input(new_width, new_height, input_directory):
+def prep_input(new_width, new_height, input_directory, shuffle=SHUFFLE):
     iters = 24
     directory_list = list(filter(lambda x: check_extension(x, ".jpg"), os.listdir(input_directory)))
     directory_list.extend(list(filter(lambda x: check_extension(x, ".png"), os.listdir(input_directory))))
     images = np.empty((int(len(directory_list)/iters)+1, new_width*new_height*3+2), np.float64)
-    global largest_width
-    global largestHeight
+    global LARGEST_WIDTH
+    global LARGEST_HEIGHT
     np_index = 0
     for i, image in enumerate(directory_list):
-        #if iteration > 100: #REMOVE 4 REAL
-            #break
         if i%2400 == 0:
             print("Processing image " + str(i) + " of " + str(len(directory_list)))
         if i%iters == 0:# TODO: Right now this loads 4.1% of the data. Ideally, we'd like to shuffle and shard the data and use all of it. This should be based upon system RAM size. We probably want to limit it to 1/2 of RAM to allow plenty of extra space.
             current_image = Image.open(input_directory + "/" + image)
             width = current_image.size[0]
             height = current_image.size[1]
-            if width > largest_width:
-                largest_width = width
-            if height > largestHeight:
-                largestHeight = height
+            if width > LARGEST_WIDTH:
+                LARGEST_WIDTH = width
+            if height > LARGEST_HEIGHT:
+                LARGEST_HEIGHT = height
             current_image_info = [width, height]
             current_image = current_image.resize((new_width, new_height))
             for pixel in list(current_image.convert('RGB').getdata()):
                 current_image_info.extend(pixel)
             images[np_index] = normalize_input(current_image_info)
             np_index += 1
+    if shuffle:
+        np.random.shuffle(images)
     return images
 
 def display_image(image, epoch, iteration, output_dir):
     temp = Image.new('RGB', (image["width"], image["height"]))
     temp.putdata(linearToRGB(image["generated"][2:]))
-    adjusted_width = int(largest_width*(image["generated"][0]+1)/2)
-    adjusted_height = int(largestHeight*(image["generated"][1]+1)/2)
+    adjusted_width = int(LARGEST_WIDTH*(image["generated"][0]+1)/2)
+    adjusted_height = int(LARGEST_HEIGHT*(image["generated"][1]+1)/2)
     if adjusted_width > 0 and adjusted_height > 0:
-        filename = output_dir +'/epoch' + str(epoch) + '/' + str(iteration) + '.png'
+        filename = output_dir + 'epoch' + str(epoch) + '/' + str(iteration) + '.png'
         temp = temp.resize((adjusted_width, adjusted_height))
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        #temp.show()
         temp.save(filename)
 
 def linearToRGB(image):
@@ -76,42 +99,72 @@ def linearToRGB(image):
             current_pixel = []
     return tuple(new_image)
 
-def generate_and_save(GAN, epoch, image, number=5, save=None):
-    if save is None:
-        save = {
-            "on": True,
-            "interval": 10000,
-            "in_place": True,
-            "directory": '/media/troper/Troper_Work-DB/dreams_of/output'
+def generate_and_save(gan, image, test_image_count=TEST_IMAGE_COUNT, save_info=None):
+    if save_info is None:
+        save_info = SAVE
+    save(gan, save_info, False)
+    for i in range(test_image_count):
+        noise = np.random.normal(0, 1, size=[1, gan["seed_size"]])
+        image["generated"] = gan["networks"]["generator"].predict(noise)[0]
+        display_image(image, gan["epoch_current"], i, save_info["directory"])
+
+def save(gan, save_info, is_exit):
+    if save_info["on"] and gan["epoch_current"] != 0 and (gan["epoch_current"] % save_info["interval"] == 0 or is_exit):
+        in_place_mod = ""
+        if not save_info["in_place"]:
+            in_place_mod = 'epoch' + str(gan["epoch_current"]) + '/'
+        for key in gan["networks"]:
+            filename = save_info["directory"] + in_place_mod + key + '.h5'
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            gan["networks"][key].save(filename)
+        reduced_dict = {}
+        for key in gan:
+            if key != "networks":
+                reduced_dict[key] = gan[key]
+        other_file_json = json.dumps(reduced_dict)
+        filename = save_info["directory"] + in_place_mod + 'other.tmi'
+        with open(filename, "w") as other_file:
+            other_file.write(other_file_json)
+
+def test_gan(image=None, load=None): # TODO: Add BW optionAdd
+    if image is None:
+        image = IMAGE
+    gan = []
+    if load is None:
+        gan = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator": GENERATOR_LAYERS, "discriminator": DISCRIMINATOR_LAYERS})
+    else:
+        gan = {
+            "networks": {
+                "generator": models.load_model(load["directory"] + load["names"]["generator"] + ".h5"),
+                "discriminator": models.load_model(load["directory"] + load["names"]["discriminator"] + ".h5"),
+                "gan": models.load_model(load["directory"] + load["names"]["gan"] + ".h5")
+            },
+            "seed_size": 100, # TODO: Load seed size
+            "epoch_current": 1801 # TODO: Load this
         }
-    generator = GAN[0]
-    if epoch % save["interval"] == 0 and save["on"] and epoch != 0:
-        if save["in_place"]:
-            filename = save["directory"] + '/GAN[0].h5'
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-            GAN[0].save(filename)
-            filename = save["directory"] + '/GAN[1].h5'
-            GAN[1].save(filename)
-            filename = save["directory"] + '/GAN[2].h5'
-            GAN[2].save(filename)
-        else:
-            filename = save["directory"] +'/epoch' + str(epoch) + '/GAN[0].h5'
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-            GAN[0].save(filename)
-            filename = save["directory"] +'/epoch' + str(epoch) + '/GAN[1].h5'
-            GAN[1].save(filename)
-            filename = save["directory"] +'/epoch' + str(epoch) + '/GAN[2].h5'
-            GAN[2].save(filename)
-    for i in range(number):
-        noise = np.random.normal(0, 1, size=[1, GAN[3]])
-        image["generated"] = generator.predict(noise)[0]
-        display_image(image, epoch, i, save["directory"])
+    data = prep_input(image["width"], image["height"], WORKING_ROOT + INPUT_DIR)
+    # This could be a good spot to implement sharding - train a few epochs with each set, then swap out for more sets
+    try:
+        combo.train_gan(gan, data, image, epoch_total=EPOCHS, batch_size=BATCH_SIZE, display_function=generate_and_save)
+    except (KeyboardInterrupt, SystemExit):
+        save(gan, SAVE, True)
+        raise
 
+def load_and_restore(model_names=None, load_dir=WORKING_ROOT + OUTPUT_DIR, image=None):
+    if model_names is None:
+        model_names = MODEL_NAMES
+    if image is None:
+        image = IMAGE
+    load = {
+        "directory": load_dir,
+        "names": {
+            "generator": model_names[0],
+            "discriminator": model_names[1],
+            "gan": model_names[2]
+        }
+    }
+    test_gan(image, load=load)
 
-def test_GAN(image={"width":100,"height":100}): # TODO: Add BW option
-    models = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator":[128, 256, 512, 1024, 2048, 4096], "discriminator":[256, 256, 128, 16, 8, 4, 2]})
-    data = prep_input(image["width"], image["height"], "/media/troper/Troper_Work-DB/dreams_of/electric_sheep")
-    combo.train_gan(models, data, image, epochs=100000, batch_size=128, display_function=generate_and_save)
-
-test_GAN()
-
+if __name__ == "__main__":
+    test_gan()
+    #load_and_restore()
