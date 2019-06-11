@@ -75,8 +75,12 @@ def plot_generated_images(gan, image, examples=100, dim=(10, 10), figsize=(10, 1
     plt.savefig('gan_generated_image_epoch_%d.png' % gan["epoch_current"])
 
 
-def train_gan(gan, training_x, image, epoch_total=1, batch_size=128, display_function=plot_generated_images):
-    # [[Turn gan into dictionary instead of array
+def train_gan(gan, training_x, image, epoch_total=1, batch_size=128, display_function=plot_generated_images, shuffle=True):
+    # TODO: Understand this more, make mods
+
+    if shuffle:
+        np.random.shuffle(training_x)
+
     batch_count = int(training_x.shape[0] / batch_size)
 
     for epoch in range(gan["epoch_current"], epoch_total):

@@ -49,7 +49,7 @@ def normalize_input(raw_image):
             normalized_image.append((value/255)*2-1)
     return normalized_image
 
-def prep_input(new_width, new_height, input_directory, shuffle=SHUFFLE):
+def prep_input(new_width, new_height, input_directory):
     iters = 24
     directory_list = list(filter(lambda x: check_extension(x, ".jpg"), os.listdir(input_directory)))
     directory_list.extend(list(filter(lambda x: check_extension(x, ".png"), os.listdir(input_directory))))
@@ -74,8 +74,6 @@ def prep_input(new_width, new_height, input_directory, shuffle=SHUFFLE):
                 current_image_info.extend(pixel)
             images[np_index] = normalize_input(current_image_info)
             np_index += 1
-    if shuffle:
-        np.random.shuffle(images)
     return images
 
 def display_image(image, epoch, iteration, output_dir):
@@ -129,23 +127,22 @@ def save(gan, save_info, is_exit):
 def test_gan(image=None, load=None): # TODO: Add BW optionAdd
     if image is None:
         image = IMAGE
-    gan = []
+    gan = {}
     if load is None:
         gan = combo.build_gan_model(image["width"]*image["height"]*3+2, {"generator": GENERATOR_LAYERS, "discriminator": DISCRIMINATOR_LAYERS})
     else:
-        gan = {
-            "networks": {
-                "generator": models.load_model(load["directory"] + load["names"]["generator"] + ".h5"),
-                "discriminator": models.load_model(load["directory"] + load["names"]["discriminator"] + ".h5"),
-                "gan": models.load_model(load["directory"] + load["names"]["gan"] + ".h5")
-            },
-            "seed_size": 100, # TODO: Load seed size
-            "epoch_current": 1801 # TODO: Load this
-        }
-    data = prep_input(image["width"], image["height"], WORKING_ROOT + INPUT_DIR)
-    # This could be a good spot to implement sharding - train a few epochs with each set, then swap out for more sets
+        other_info = None
+        with open(load["directory"] + "other.tmi") as other_info_file:
+            other_info = json.load(other_info_file)
+        gan["networks"] = {}
+        for network in load["names"]:
+            gan["networks"][network] = models.load_model(load["directory"] + network + ".h5")
+        for key in other_info:
+            gan[key] = other_info[key]
+    images = prep_input(image["width"], image["height"], WORKING_ROOT + INPUT_DIR)
+    # TODO: This could be a good spot to implement sharding - train a few epochs with each set, then swap out for more sets
     try:
-        combo.train_gan(gan, data, image, epoch_total=EPOCHS, batch_size=BATCH_SIZE, display_function=generate_and_save)
+        combo.train_gan(gan, images, image, epoch_total=EPOCHS, batch_size=BATCH_SIZE, display_function=generate_and_save, shuffle=SHUFFLE)
     except (KeyboardInterrupt, SystemExit):
         save(gan, SAVE, True)
         raise
@@ -157,14 +154,10 @@ def load_and_restore(model_names=None, load_dir=WORKING_ROOT + OUTPUT_DIR, image
         image = IMAGE
     load = {
         "directory": load_dir,
-        "names": {
-            "generator": model_names[0],
-            "discriminator": model_names[1],
-            "gan": model_names[2]
-        }
+        "names": model_names
     }
     test_gan(image, load=load)
 
 if __name__ == "__main__":
-    test_gan()
-    #load_and_restore()
+    #test_gan()
+    load_and_restore()
