@@ -75,35 +75,45 @@ def plot_generated_images(gan, image, examples=100, dim=(10, 10), figsize=(10, 1
     plt.savefig('gan_generated_image_epoch_%d.png' % gan["epoch_current"])
 
 
-def train_gan(gan, training_x, image, epoch_total=1, batch_size=128, display_function=plot_generated_images, shuffle=True):
-    # TODO: Understand this more, make mods
-
-    if shuffle:
-        np.random.shuffle(training_x)
+def train_gan(gan, training_x, image, epoch_total=1, batch_size=128, display_function=plot_generated_images):
+    # TODO: Make mods?
 
     batch_count = int(training_x.shape[0] / batch_size)
 
     for epoch in range(gan["epoch_current"], epoch_total):
         print("Epoch: " + str(epoch))
         for i in tqdm(range(batch_count)):
-            print()
-            noise = np.random.normal(0, 1, size=[batch_size, gan["seed_size"]])
+            # Generates random noise for the seeds used by the generator
+            seed_noise = np.random.normal(0, 1, size=[batch_size, gan["seed_size"]])
+
+            # Creates a batch of size batch_size, pulled from a random selection
+            # of the training data
             batch = training_x[np.random.randint(
                 0, training_x.shape[0], size=batch_size)]
 
-            generated = gan["networks"]["generator"].predict(noise)
-            x = np.concatenate([batch, generated])
+            # Generates images from the noise
+            generated = gan["networks"]["generator"].predict(seed_noise)
 
-            y_dis = np.zeros(2 * batch_size)
-            y_dis[:batch_size] = .9
+            # Creates a training batch composed of half generated images, and
+            # half real images
+            discriminator_training_x = np.concatenate((batch, generated))
 
+            # Creates a corresponding "real/not real" set of data for training,
+            # where .9 is assigned to real items and 0 to fake
+            discriminator_training_y = np.zeros(2 * batch_size)
+            discriminator_training_y[:batch_size] = .9
+
+            # Trains the discriminator on it's own
             gan["networks"]["discriminator"].trainable = True
-            gan["networks"]["discriminator"].train_on_batch(x, y_dis)
-
-            noise = np.random.normal(0, 1, size=[batch_size, gan["seed_size"]])
-            y_gen = np.ones(batch_size)
+            gan["networks"]["discriminator"].train_on_batch(discriminator_training_x, discriminator_training_y)
             gan["networks"]["discriminator"].trainable = False
-            gan["networks"]["gan"].train_on_batch(noise, y_gen)
+
+            # Generates new random seed noise to train the generator
+            seed_noise = np.random.normal(0, 1, size=[batch_size, gan["seed_size"]])
+            # Sets the target values, to be 1 (the generator wants to convinve
+            # the discriminator the forgeries are real)
+            desired_discriminator_outcome = np.ones(batch_size)
+            gan["networks"]["gan"].train_on_batch(seed_noise, desired_discriminator_outcome)
         display_function(gan, image)  # TODO: Changes needed HERE!!!
         gan["epoch_current"] += 1
 

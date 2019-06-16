@@ -6,12 +6,11 @@ import atexit
 import numpy as np
 from PIL import Image
 from tensorflow.keras import models
-sys.path.append('/media/troper/Troper_Primary-D/Projects/QuickTMI/QuickTMI')
+sys.path.append('/home/Projects/QuickTMI/QuickTMI')
 import combo
 
 # TODO: Add more model summary statistics when saved
 # TODO: Create more optionality - allow swapping in various generators and discriminators in order to create a more flexible network
-# TODO: Test save on exit
 
 IMAGE = {"width":100, "height":100}
 WORKING_ROOT = "/media/troper/Troper_Work-DB/dreams_of/"
@@ -19,7 +18,6 @@ INPUT_DIR = "electric_sheep/"
 OUTPUT_DIR = "output/"
 EPOCHS = 100000
 BATCH_SIZE = 16
-SHUFFLE = True
 MODEL_NAMES = ["generator", "discriminator", "gan"]
 GENERATOR_LAYERS = [128, 256, 512, 1024, 2048, 4096]
 DISCRIMINATOR_LAYERS = [128, 16, 8, 4, 2]
@@ -142,7 +140,7 @@ def test_gan(image=None, load=None): # TODO: Add BW optionAdd
     images = prep_input(image["width"], image["height"], WORKING_ROOT + INPUT_DIR)
     # TODO: This could be a good spot to implement sharding - train a few epochs with each set, then swap out for more sets
     try:
-        combo.train_gan(gan, images, image, epoch_total=EPOCHS, batch_size=BATCH_SIZE, display_function=generate_and_save, shuffle=SHUFFLE)
+        combo.train_gan(gan, images, image, epoch_total=EPOCHS, batch_size=BATCH_SIZE, display_function=generate_and_save)
     except (KeyboardInterrupt, SystemExit):
         save(gan, SAVE, True)
         raise
