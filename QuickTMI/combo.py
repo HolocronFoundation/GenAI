@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+import os
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import models
@@ -7,7 +8,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-config = tf.ConfigProto(log_device_placement=True)
+# TODO: Do something better than this
+USE_GPU = False
+if not USE_GPU:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+if tf.test.gpu_device_name():
+    print('GPU found')
+else:
+    print("No GPU found")
+
+config = tf.ConfigProto(log_device_placement=False)
 sess = tf.InteractiveSession(config=config)
 
 

@@ -1,5 +1,6 @@
 
 import sys
+import tensorflow as tf
 import os
 import json
 import atexit
@@ -9,6 +10,8 @@ from tensorflow.keras import models
 sys.path.append('/home/Projects/QuickTMI/QuickTMI')
 import combo
 
+
+
 # TODO: Add more model summary statistics when saved
 # TODO: Create more optionality - allow swapping in various generators and discriminators in order to create a more flexible network
 
@@ -17,7 +20,7 @@ WORKING_ROOT = "/media/troper/Troper_Work-DB/dreams_of/"
 INPUT_DIR = "electric_sheep/"
 OUTPUT_DIR = "output/"
 EPOCHS = 100000
-BATCH_SIZE = 16
+BATCH_SIZE = 4
 MODEL_NAMES = ["generator", "discriminator", "gan"]
 GENERATOR_LAYERS = [128, 256, 512, 1024, 2048, 4096]
 DISCRIMINATOR_LAYERS = [128, 16, 8, 4, 2]
@@ -48,6 +51,8 @@ def normalize_input(raw_image):
     return normalized_image
 
 def prep_input(new_width, new_height, input_directory):
+    # TODO: Thread this
+    # TODO: Save out processed images
     iters = 24
     directory_list = list(filter(lambda x: check_extension(x, ".jpg"), os.listdir(input_directory)))
     directory_list.extend(list(filter(lambda x: check_extension(x, ".png"), os.listdir(input_directory))))
@@ -141,7 +146,7 @@ def test_gan(image=None, load=None): # TODO: Add BW optionAdd
     # TODO: This could be a good spot to implement sharding - train a few epochs with each set, then swap out for more sets
     try:
         combo.train_gan(gan, images, image, epoch_total=EPOCHS, batch_size=BATCH_SIZE, display_function=generate_and_save)
-    except (KeyboardInterrupt, SystemExit):
+    except (KeyboardInterrupt, SystemExit, tf.errors.ResourceExhaustedError):
         save(gan, SAVE, True)
         raise
 
