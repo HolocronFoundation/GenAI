@@ -22,8 +22,8 @@ OUTPUT_DIR = "output/"
 EPOCHS = 100000
 BATCH_SIZE = 4
 MODEL_NAMES = ["generator", "discriminator", "gan"]
-GENERATOR_LAYERS = [128, 256, 512, 1024, 2048, 4096]
-DISCRIMINATOR_LAYERS = [128, 16, 8, 4, 2]
+GENERATOR_LAYERS = [128, 256, 512, 1024, 2048, 3072]
+DISCRIMINATOR_LAYERS = [256, 128, 16, 8, 4, 2]
 SAVE = {
     "on": True,
     "interval": 100,
@@ -159,6 +159,8 @@ def load_and_restore(model_names=None, load_dir=WORKING_ROOT + OUTPUT_DIR, image
         "directory": load_dir,
         "names": model_names
     }
+    load = None
+    # TODO: Add check for no existing files to load to default, rather than this manual default
     test_gan(image, load=load)
 
 if __name__ == "__main__":

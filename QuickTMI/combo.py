@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 # TODO: Do something better than this
-USE_GPU = False
+USE_GPU = True
 if not USE_GPU:
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
