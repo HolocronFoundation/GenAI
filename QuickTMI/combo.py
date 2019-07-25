@@ -91,14 +91,16 @@ def train_gan(gan, training_x, image, epoch_total=1, batch_size=128, display_fun
     # TODO: Make mods?
 
     for epoch in range(gan["epoch_current"], epoch_total):
-        print("Epoch: " + str(epoch))
 
         # TODO: If this works, formalize notation and create a function to generate the range, update inputs.
         max_batch_size = batch_size
-        minimum_batch_size = 8
-        current_batch_size = random.randint(minimum_batch_size, batch_size*2-minimum_batch_size)
+        minimum_batch_size = 2
+        current_batch_size = random.randint(minimum_batch_size, max_batch_size)
         if current_batch_size > max_batch_size:
             current_batch_size = max_batch_size
+        # Todo: set a target avg. instead of this shit
+
+        print("Epoch: " + str(epoch) + " with a batch size of " + str(current_batch_size))
 
         batch_count = int(training_x.shape[0] / current_batch_size)
         for i in tqdm(range(batch_count)):
@@ -166,4 +168,4 @@ def build_dnn_model(input_size, output_size, hidden_layers=4, default_layer_size
 
     return model
 
-    # ~~~ Current unmarked things - if hiddenlayer is a list, it must be integers.
+    # ~~~ Current unmarked things - if hiddenlayer is a list,

@@ -20,7 +20,7 @@ WORKING_ROOT = "/media/troper/Troper_Work-DB/dreams_of/"
 INPUT_DIR = "electric_sheep/"
 OUTPUT_DIR = "output/"
 EPOCHS = 100000
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 MODEL_NAMES = ["generator", "discriminator", "gan"]
 GENERATOR_LAYERS = [128, 256, 512, 1024, 2048, 3072]
 DISCRIMINATOR_LAYERS = [256, 128, 16, 8, 4, 2]
@@ -159,7 +159,8 @@ def load_and_restore(model_names=None, load_dir=WORKING_ROOT + OUTPUT_DIR, image
         "directory": load_dir,
         "names": model_names
     }
-    load = None
+    # load = None
+    # TODO: Clean up loading process
     # TODO: Add check for no existing files to load to default, rather than this manual default
     test_gan(image, load=load)
 
