@@ -2,11 +2,11 @@ import sys, os
 import numpy as np
 from PIL import Image
 
-sys.path.append('C:/Users/Samuel Troper/Documents/GitHub/QuickTMI/QuickTMI')
+sys.path.append('C:/Users/Samuel Troper/Documents/GitHub/GenAI/GenAI')
 
 import combo
 
-currentDir = 'C:/Users/Samuel Troper/Documents/GitHub/QuickTMI/dAll'
+currentDir = 'C:/Users/Samuel Troper/Documents/GitHub/GenAI/dAll'
 
 outputDir ='D:/dAlI Output'
 

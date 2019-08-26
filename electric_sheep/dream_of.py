@@ -7,7 +7,7 @@ import atexit
 import numpy as np
 from PIL import Image
 from tensorflow.keras import models
-sys.path.append('/home/Projects/QuickTMI/QuickTMI')
+sys.path.append('/home/Projects/GenAI/GenAI')
 import combo
 
 
